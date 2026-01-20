@@ -3,10 +3,11 @@ from setuptools import setup, find_packages
 
 setup(
     name="xcavation",
-    version="0.3.0",
+    version="0.3.1",
     license="MIT License",
     packages=find_packages(),
     install_requires=[
+            "astroscrappy",
             "numpy",
             "scipy",
             "pandas",

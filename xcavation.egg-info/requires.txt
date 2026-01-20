@@ -1,3 +1,4 @@
+astroscrappy
 numpy
 scipy
 pandas

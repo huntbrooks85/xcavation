@@ -6,7 +6,6 @@ xcavation/__init__.py
 xcavation/aperture.py
 xcavation/genspec.py
 xcavation/motion.py
-xcavation/psf.py
 xcavation/quality.py
 xcavation.egg-info/PKG-INFO
 xcavation.egg-info/SOURCES.txt

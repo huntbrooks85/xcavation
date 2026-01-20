@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.motion v0.3.0
-# By Hunter Brooks, at UToledo, Toledo: Jan. 13, 2026
+# xcavation.motion v0.3.1
+# By Hunter Brooks, at UToledo, Toledo: Jan. 20, 2026
 #
 # Purpose: Propogate celestial coordinates using proper motion
 #-----------------------------------------------------------------------#
@@ -34,7 +34,7 @@ def decimal_year(t):
 
 # Calculate Time Passed since CW Observation
 #-----------------------------------------------------------------------#
-def time(mjd):
+def time_mjd(mjd):
     t = Time(mjd, format='mjd')
     decimal_year_cw = t.decimalyear
 
