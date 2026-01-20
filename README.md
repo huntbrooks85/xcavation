@@ -4,19 +4,14 @@
 </p>
 
 <p align="center">
-  <a href="https://irsa.ipac.caltech.edu/data/SPHEREx/docs/overview_qr.html">
-    <img src="https://img.shields.io/badge/SPHEREx-QR2-green" alt="SPHEREx QR2">
-  </a>
-  <a href="https://pypi.org/project/xcavation/">
-    <img src="https://img.shields.io/pypi/v/xcavation" alt="PyPI version">
-  </a>
-  <a href="https://pypistats.org/packages/xcavation">
-    <img src="https://img.shields.io/pypi/dm/xcavation" alt="PyPI downloads">
-  </a>
-  <a href="https://doi.org/10.5281/zenodo.18316250">
-    <img src="https://zenodo.org/badge/18316250.svg" alt="DOI">
-  </a>
+
+[![SPHEREx QR2](https://img.shields.io/badge/SPHEREx-QR2-green)](https://irsa.ipac.caltech.edu/data/SPHEREx/docs/overview_qr.html)
+[![PyPI version](https://img.shields.io/pypi/v/xcavation)](https://pypi.org/project/xcavation/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/xcavation)](https://pypistats.org/packages/xcavation)
+[![DOI](https://zenodo.org/badge/18316250.svg)](https://doi.org/10.5281/zenodo.18316250)
+
 </p>
+
 
 <div align="center">
   <p id="description" > <b>Xcavation</b> is a Python package for rapid forced-photometry calculations of <a href="https://spherex.caltech.edu/">SPHEREx</a> QR2 spectral data. It uses the <code>astroquery.irsa</code> package to access <a href="https://spherex.caltech.edu/">SPHEREx</a> images through the IRSA API. Both aperture and PSF photometry are supported and include multi-threading for improved performance.  </p>
