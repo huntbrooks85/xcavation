@@ -13,7 +13,8 @@
   <a href="https://pypistats.org/packages/xcavation">
     <img src="https://img.shields.io/pypi/dm/xcavation" alt="PyPI downloads">
   </a>
-  <a href="https://doi.org/10.5281/zenodo.18316250"> <img src="https://zenodo.org/badge/DOI/10.5281/zenodo.18316250.svg" alt="DOI">
+  <a href="https://doi.org/10.5281/zenodo.18316250">
+    <img src="https://zenodo.org/badge/18316250.svg" alt="DOI">
   </a>
 </p>
 
