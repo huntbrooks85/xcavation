@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.quality v0.3.1
-# By Hunter Brooks, at UToledo, Toledo: Jan. 20, 2026
+# xcavation.quality v0.3.2
+# By Hunter Brooks, at UToledo, Toledo: Jan. 26, 2026
 #
 # Purpose: Plotting Tools for SphereX Data
 #-----------------------------------------------------------------------#
@@ -42,101 +42,216 @@ plt.rcParams.update({
 
 
 
-# Generate Finder Chart
-#----------------------------------------------------------------------- #
+
+# Function to Generate Q.A. Finder Charts
+# ------------------------------------------------------ #
 def finder_chart(output, pdf_path):
-  n_images = len(output['flux_cutout'])
-  ncols = 5
-  nrows = math.ceil(n_images / ncols)
+  """
+  Generate a multi-panel finder chart PDF from SPHEREx aperture photometry results.
 
-  wavelengths = np.array(output['wavelength'])
-  sorted_idx = np.argsort(wavelengths)
-  flux_cutouts_sorted = [output['flux_cutout'][i] for i in sorted_idx]
-  apers_sorted = [output['aperture'][i] for i in sorted_idx]
-  annuls_sorted = [output['annulus'][i] for i in sorted_idx]
-  x_locs_sorted = [output['x_loc'][i] for i in sorted_idx]
-  y_locs_sorted = [output['y_loc'][i] for i in sorted_idx]
-  wavelengths_sorted = wavelengths[sorted_idx]
-  fluxes_sorted = [output['flux'][i] for i in sorted_idx]
+  This function creates a grid of cutout images for multiple wavelengths,
+  overlays the aperture and annulus regions, and marks the target position.
+  The panels are sorted by wavelength. The final figure is saved as a PDF.
 
-  aperture_sorted = [output['ap_radius'][i] for i in sorted_idx]
-  inner_annulus_sorted = [output['inner_annulus'][i] for i in sorted_idx]
-  outer_annulus_sorted = [output['outer_annulus'][i] for i in sorted_idx]
+  Parameters
+  ----------
+    output: dict
+        Dictionary containing SPHEREx photometry:
+        - 'flux_cutout': list of 2D flux arrays (μJy)
+        - 'aperture': list of 2D aperture masks
+        - 'annulus': list of 2D annulus masks
+        - 'x_loc', 'y_loc': lists of pixel coordinates of the target in cutouts
+        - 'wavelength': list or array of wavelengths (μm)
+        - 'flux': list of aperture flux values (μJy)
+        - 'ap_radius', 'inner_annulus', 'outer_annulus': lists of radii in arcsec
+    pdf_path: File path where the PDF finder chart will be saved (str)
 
+  Returns
+  -------
+    None: Figure save to the specified path
+  """
+
+
+
+  # ------- Set-Up Subplots ------- #
+  n_images = len(output['flux_cutout']) # Total number of flux arrays
+  ncols = 5 # Number of Columns (pre-set)
+  nrows = math.ceil(n_images / ncols) # Number of Rows (based on total)
+  # ------------------------------- #
+
+
+
+  # ------- Get Required Data From Input Array ------- #
+  # Sort By Wavelength
+  wavelengths = np.array(output['wavelength']) # Original Wavelength List
+  sorted_idx = np.argsort(wavelengths) # Sorted Wavelength List
+
+  # Sorts All Needed Variables
+  flux_cutouts_sorted = [output['flux_cutout'][i] for i in sorted_idx] # Cutouts
+  apers_sorted = [output['aperture'][i] for i in sorted_idx] # Aperture Mask
+  annuls_sorted = [output['annulus'][i] for i in sorted_idx] # Annulus Mask
+  x_locs_sorted = [output['x_loc'][i] for i in sorted_idx] # X Pixel Location
+  y_locs_sorted = [output['y_loc'][i] for i in sorted_idx] # Y Pixel Location
+  wavelengths_sorted = wavelengths[sorted_idx] # Sorted Wavelength
+  fluxes_sorted = [output['flux'][i] for i in sorted_idx] # Flux
+  aperture_sorted = [output['ap_radius'][i] for i in sorted_idx] # Aperture Radius
+  inner_annulus_sorted = [output['inner_annulus'][i] for i in sorted_idx] # Inner Annulus Radius
+  outer_annulus_sorted = [output['outer_annulus'][i] for i in sorted_idx] # Outer Annulus Radius
+  # -------------------------------------------------- #
+
+
+
+  # ------- Create Subplot ------- #
   fig, axes = plt.subplots(nrows, ncols, figsize=(3*ncols, 3*nrows))
+  # ------------------------------ #
 
+
+
+  # ------------ Plot Each Cutout ------------ #
   axes = axes.ravel()
   valid_count = 0
   for i in range(n_images):
-    cutouts = flux_cutouts_sorted[i]
-    wavelength = wavelengths_sorted[i]
-    flux = fluxes_sorted[i]
+      # Get Relavent Data
+      cutouts = flux_cutouts_sorted[i] # Cutout
+      wavelength = wavelengths_sorted[i] # Wavelength
+      flux = fluxes_sorted[i] # Flux
 
-    if (cutouts is not None) and (np.isfinite(wavelength)) and (np.isfinite(flux)):
-      ax = axes[valid_count]
+      # Verify that each Cutout, Wavelength, and Flux is Valid
+      if (cutouts is not None) and (np.isfinite(wavelength)) and (np.isfinite(flux)):
+        ax = axes[valid_count] # Counts Valid Axes
 
-      apers = apers_sorted[i]
-      annuls = annuls_sorted[i]
-      x_loc = x_locs_sorted[i]
-      y_loc = y_locs_sorted[i]
-      aperture = aperture_sorted[i]
-      inner_annulus = inner_annulus_sorted[i]
-      outer_annulus = outer_annulus_sorted[i]
+        # Get the Valid Data
+        apers = apers_sorted[i] # Aperture Mask
+        annuls = annuls_sorted[i] # Annulus Mask
+        x_loc = x_locs_sorted[i] # Queried X Location
+        y_loc = y_locs_sorted[i] # Queried Y Location
+        aperture = aperture_sorted[i] # Aperture Radius
+        inner_annulus = inner_annulus_sorted[i] # Inner Annulus Radius
+        outer_annulus = outer_annulus_sorted[i] # Outer Annulus Radius
 
-      ax.scatter(x_loc, y_loc, c='yellow', marker='*', s = 100)
-      ax.imshow(cutouts, cmap='Greys', vmin=np.nanpercentile(cutouts, 1), vmax=np.nanpercentile(cutouts, 99))
-      ax.imshow(np.ma.masked_where(apers == 0, apers), cmap=ListedColormap(['red']), alpha=0.2)
-      ax.imshow(np.ma.masked_where(annuls == 0, annuls), cmap=ListedColormap(['blue']), alpha=0.2)
+        # Plots the Image Data
+        ax.scatter(x_loc, y_loc, c='yellow',marker='*', s = 100) # Queried Point
+        ax.imshow(cutouts, cmap='Greys',
+          vmin=np.nanpercentile(cutouts, 1), vmax=np.nanpercentile(cutouts, 99))
+        ax.imshow(np.ma.masked_where(apers == 0, apers),
+                  cmap=ListedColormap(['red']), alpha=0.2) # Aperture Mask
+        ax.imshow(np.ma.masked_where(annuls == 0, annuls),
+                  cmap=ListedColormap(['blue']), alpha=0.2) # Annulus Mask
 
-      ap = Circle((x_loc, y_loc), aperture/6.15, color='red', lw = 2, fill = False)
-      in_an = Circle((x_loc, y_loc), inner_annulus/6.15, color='blue', lw = 2, fill = False)
-      out_an = Circle((x_loc, y_loc), outer_annulus/6.15, color='blue', lw = 2, fill = False)
+        # Creates Matplotlib Circles for Aperture and Annulus Radii
+        ap = Circle((x_loc, y_loc), aperture/6.15,
+                    color='red', lw = 2, fill = False) # Aperture Radius
+        in_an = Circle((x_loc, y_loc), inner_annulus/6.15,
+                    color='blue', lw = 2, fill = False) # Inner Annulus Radius
+        out_an = Circle((x_loc, y_loc), outer_annulus/6.15,
+                    color='blue', lw = 2, fill = False) # Outer Annulus Radius
 
-      ax.add_patch(ap)
-      ax.add_patch(in_an)
-      ax.add_patch(out_an)
+        # Plots Each Circle
+        ax.add_patch(ap) # Aperture
+        ax.add_patch(in_an) # Inner Annulus
+        ax.add_patch(out_an) # Outer Annulus
 
-      ax.set_title(f"$λ$: {wavelength:.4f} μm and $F_λ$: {flux:.0f}", fontsize=12)
-      ax.axis('off')
-      valid_count += 1
+        # General Subplot Looks
+        ax.set_title(f"$λ$: {wavelength:.4f} μm and $F_λ$: {flux:.0f}", fontsize=12)
+        ax.axis('off') # Turn off axis
+        valid_count += 1 # Counts Valid Plots
+  # ------------------------------------------ #
 
+
+
+  # ------------ Fix Plots ------------ #
+  # Remove Unused Plots
   for ax in axes[valid_count:]:
-    fig.delaxes(ax)
+      fig.delaxes(ax)
 
-  plt.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.95, wspace=0.05, hspace=0.15)
+  # Adjust Each Subplot
+  plt.subplots_adjust(left=0.02, right=0.98,
+                      bottom=0.02, top=0.95,
+                      wspace=0.05, hspace=0.15)
+  # -------------------------------------- #
 
-  plt.savefig(pdf_path, bbox_inches='tight')
-  plt.close()
-# ----------------------------------------------------------------------- #
 
 
 
-# Plot Spectra
-#----------------------------------------------------------------------- #
+  # ------------ Save Figure ------------ #
+  plt.savefig(pdf_path, bbox_inches='tight') # Save Figure
+  plt.close() # Close Figure to Save Memory
+  # ------------------------------------- #
+# ------------------------------------------------------ #
+
+
+
+# Plots Spectra Without Saving
+# ------------------------------------------------------ #
 def spectra_plot(output):
+  """
+  Plot a SPHEREx spectrum with flux uncertainties.
+
+  Parameters
+  ----------
+    output : dict
+        Dictionary containing SPHEREx photometry results. Expected keys:
+        - 'wavelength': list or array of wavelengths in microns (μm)
+        - 'flux': list or array of flux values in μJy
+        - 'flux_err': list or array of flux uncertainties in μJy
+
+  Returns
+  -------
+    None
+        Displays the spectrum plot using matplotlib. Does not return data.
+  """
+
+
+
+  # ------- Create Plot ------- #
   plt.figure(figsize=(6,4))
+  # --------------------------- #
 
-  wavelengths = np.array(output['wavelength'])
-  fluxes = np.array(output['flux'])
-  errors = np.array(output['flux_err'])
 
-  sort_idx = np.argsort(wavelengths)
-  wavelengths = wavelengths[sort_idx]
-  fluxes = fluxes[sort_idx]
-  errors = errors[sort_idx]
-  finite = np.isfinite(fluxes)
 
-  plt.errorbar(wavelengths[finite], fluxes[finite], yerr=errors[finite], fmt='o', color='slategray', ecolor='slategray', elinewidth=1.5, capsize=3, markersize=1, alpha = 0.5)
+  # ------- Get Relevant Data ------- #
+  wavelengths = np.array(output['wavelength']) # Wavelength
+  fluxes = np.array(output['flux']) # Flux
+  errors = np.array(output['flux_err']) # Flux Error
+  # --------------------------------- #
 
-  plt.step(wavelengths[finite], fluxes[finite], color='#656D3F', alpha=0.6, where = 'mid')
 
-  plt.xlabel("Wavelength [μm]", fontsize=14)
-  plt.ylabel("Flux [μJy]", fontsize=14)
 
-  plt.grid(alpha=0.2)
-  plt.minorticks_on()
-  plt.tight_layout()
+  # ------- Sort Data Based On Wavelength ------- #
+  sort_idx = np.argsort(wavelengths) # Sort Based on Wavelength
+  wavelengths = wavelengths[sort_idx] # Wavelength Sort
+  fluxes = fluxes[sort_idx] # Flux Sort
+  errors = errors[sort_idx] # Flux Error Sort
+  finite = np.isfinite(fluxes) # Ensures that all Flus Data is Real
+  # --------------------------------------------- #
 
-  plt.ylim(-100, np.nanpercentile(fluxes[finite], 99))
+
+
+  # ------- Plot Flux and Errors ------- #
+  plt.errorbar(wavelengths[finite], fluxes[finite], # Plot Flux
+               yerr=errors[finite], fmt='o', color='slategray',
+               ecolor='slategray', elinewidth=1.5, capsize=3,
+               markersize=1, alpha = 0.5)
+  plt.step(wavelengths[finite], fluxes[finite], # Plot Errors
+           color='#656D3F', alpha=0.6, where = 'mid')
+  # ------------------------------------ #
+
+
+
+  # ------- Make Plot Pretty ------- #
+  plt.xlabel("Wavelength [μm]", fontsize=14) # X Label
+  plt.ylabel("Flux [μJy]", fontsize=14) # Y Label
+
+  plt.grid(alpha=0.2) # Plot Grid
+  plt.minorticks_on() # Plot Minor Tickmarks
+  plt.tight_layout() # Forces Plot to Be Tight on all Paddings
+
+  # Make Y Limit Using Percentiles
+  bot = np.nanpercentile(fluxes[finite], 1) - 100
+  top =  np.nanpercentile(fluxes[finite], 95) + 100
+  plt.ylim(bot, top)
+
+  # Show Plot
   plt.show()
-# ----------------------------------------------------------------------- #
+  # -------------------------------- #
+# ------------------------------------------------------ #

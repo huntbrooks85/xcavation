@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="xcavation",
-    version="0.3.1",
+    version="0.3.2",
     license="MIT License",
     packages=find_packages(),
     install_requires=[
