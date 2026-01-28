@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.aperture v0.3.2
-# By Hunter Brooks, at UToledo, Toledo: Jan. 26, 2026
+# xcavation.aperture v0.4.0
+# By Hunter Brooks, at UToledo, Toledo: Jan. 28, 2026
 #
 # Purpose: Perform Aperture Photometry on SphereX Data
 #-----------------------------------------------------------------------#
@@ -27,11 +27,12 @@ from .motion import time_mjd, proper_motion
 
 # Import WCS, Photometry, and Plotting
 # ------------------------------------------------------ #
-import astroscrappy
 from astropy.wcs import WCS
+from lacosmic import remove_cosmics
 from astropy.stats import SigmaClip
 from astropy.coordinates import SkyCoord
 from astropy.nddata.utils import Cutout2D
+from scipy.ndimage import median_filter
 from photutils.aperture import CircularAperture, CircularAnnulus, aperture_photometry, ApertureStats
 # ------------------------------------------------------ #
 
@@ -42,6 +43,7 @@ from photutils.aperture import CircularAperture, CircularAnnulus, aperture_photo
 import requests
 from io import BytesIO
 # ------------------------------------------------------ #
+
 
 
 
@@ -92,7 +94,8 @@ def resolving_table(wave):
 def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
                             r_fwhm, r_annulus_in, r_annulus_out, # Radii
                              ram_download, # Download Types
-                              clean_type, bad_bits): # Bad Pixel Fixes
+                              clean_type, bad_bits, # Bad Pixel Fixes
+                                background_type): # Background Subraction
     """
     Perform SPHEREx aperture photometry for a given sky position and epoch.
     Downloads SPHEREx FITS file, propagates the input coordinates for
@@ -248,25 +251,49 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
           # Coordinates and values of good pixels
           points = np.column_stack((x[good], y[good]))
-          values = cutout_flux[good]
+          values_flux = cutout_flux[good]
+          values_var = cutout_var[good]
 
           # Interpolate over full grid
-          interp_flux = griddata(points, values, (x, y), method='nearest')
+          interp_flux = griddata(points, values_flux, (x, y), method='nearest')
+          interp_var = griddata(points, values_var, (x, y), method='nearest')
           cutout_flux[cutout_mask] = interp_flux[cutout_mask]
+          cutout_var[cutout_mask] = interp_var[cutout_mask]
         # ------------------------------------------------------ #
 
 
 
-        # ---------------- Convert Units ---------------- #
-        # Clean Image and Variance Cutouts Using Astroscrappy
+        # ---------------- Median Masking ---------------- #
         if clean_type == 'median_mask':
-          # Flux and Variance Astroscrappy Clean
-          cr_mask_flux, cutout_flux = astroscrappy.detect_cosmics(cutout_flux,
-                                      inmask=cutout_mask, cleantype = 'medmask') # Flux
-          cr_mask_var, cutout_var = astroscrappy.detect_cosmics(cutout_var,
-                                      inmask=cutout_mask, cleantype = 'medmask') # Variance
-        del bad_pixel_mask # Delete Mask to Save on RAM
+          bad = cutout_flag != 0   # <-- THIS IS THE FIX
+          med = median_filter(cutout_flux, size=5, mode='mirror')
+          cutout_flux[bad] = med[bad]
+        # ------------------------------------------------ #
 
+
+
+        # ---------------- LaCosmic Masking ---------------- #
+        # Clean Image and Variance Cutouts Using Astroscrappy
+        if clean_type == 'lacosmic':
+          from astropy import log
+          log.setLevel('ERROR')
+
+          cutout_flux, crmask = remove_cosmics(
+                                              cutout_flux,                  # flux array
+                                              contrast=1.5,                 # typical SPHEREx PSF sampling ~ 1–2 px
+                                              cr_threshold=20,              # Laplacian S/N threshold
+                                              neighbor_threshold=50,        # grows cosmic rays
+                                              error=np.sqrt(cutout_var),    # variance array as 1-sigma error
+                                              # mask=~cutout_mask,          # bad pixels / saturated stars
+                                              maxiter=4,
+                                              border_mode='nearest')
+        del bad_pixel_mask # Delete Mask to Save on RAM
+        # -------------------------------------------------- #
+
+
+
+
+        # ---------------- Convert Units ---------------- #
         # Converts Units of Flux and Variance Cutout
         pixel_area_sr = (pixel_scale_deg * np.pi / 180)**2 # Pixel^2 to Sr
         flux_ujy = cutout_flux * 1e6 * pixel_area_sr * 1e6 # Flux Convert
@@ -301,8 +328,16 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         # ----- Background Frame ----- #
         # Calculates Background Frame
         sigclip = SigmaClip(sigma=5.0, maxiters=5) # Sigma Clip For Background
-        bkg_per_pix = (ApertureStats(flux_ujy, annulus_ap,
-                        sigma_clip=sigclip)).mean # Average Annulus Background
+        if background_type == 'mean':
+          bkg_per_pix = (ApertureStats(flux_ujy, annulus_ap,
+                          sigma_clip=sigclip)).mean # Average Annulus Background
+        elif background_type == 'median':
+          bkg_per_pix = (ApertureStats(flux_ujy, annulus_ap,
+                          sigma_clip=sigclip)).median # Median Annulus Background
+        elif background_type == 'mode':
+          bkg_per_pix = (ApertureStats(flux_ujy, annulus_ap,
+                          sigma_clip=sigclip)).mode # Mode Annulus Background
+
         ap_mask = aperture.to_mask(method='exact').to_image(flux_ujy.shape)
 
         # Calculate Aperture Area (w/ or w/o mask)

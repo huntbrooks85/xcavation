@@ -13,4 +13,4 @@ emcee
 corner
 pathos
 requests
-astroscrappy
+lacosmic

@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: xcavation
-Version: 0.3.2
+Version: 0.4.0
 Summary: SphereX Data Retrieval and Photometry Toolkit
 Home-page: https://github.com/huntbrooks85/xcavation
 Author: Hunter Brooks
@@ -12,7 +12,7 @@ Classifier: Operating System :: OS Independent
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: astroscrappy
+Requires-Dist: lacosmic
 Requires-Dist: numpy
 Requires-Dist: scipy
 Requires-Dist: pandas

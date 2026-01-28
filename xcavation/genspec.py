@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.genspec v0.3.2
-# By Hunter Brooks, at UToledo, Toledo: Jan. 26, 2026
+# xcavation.genspec v0.4.0
+# By Hunter Brooks, at UToledo, Toledo: Jan. 28, 2026
 #
 # Purpose: Main API Function for SphereX Data Retrieval and Photometry
 #-----------------------------------------------------------------------#
@@ -54,7 +54,8 @@ def variable_verify(ra, dec, # Core Inputs
                     save_data, output_path, # Saved Data
                     threads, # Number of Multi-Threads
                     enable_print, ram_download, retry_count, # User Control
-                    clean_type, bad_bits): # Cleaning Flux Data
+                    clean_type, bad_bits, # Cleaning Flux Data
+                    background_type):
   """
   Verify user input parameters for SPHEREx aperture photometry.
 
@@ -154,10 +155,17 @@ def variable_verify(ra, dec, # Core Inputs
     return False
 
   # Checks Clean Type Variable
-  if ((clean_type != 'none') and (clean_type != 'laplacian')
+  if ((clean_type != 'none') and (clean_type != 'lacosmic')
       and (clean_type != 'mask') and (clean_type != 'median_mask')
         and (clean_type != 'interp_mask')):
     print('Please Input a Valid: Clean Tyle (none, laplacian, mask)')
+    print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
+    return False
+
+  # Checks Background Type
+  if ((background_type != 'mean') and (background_type != 'median')
+      and (background_type != 'mode')):
+    print('Please Input a Valid: Background Type (mean, median, mode)')
     print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
     return False
 
@@ -191,8 +199,9 @@ class genspec_profile:
     retry_count: int = 10 # How Many HTML Retries
     clean_type: str = 'none' # What type of Image Cleaning
     bad_bits: list = field(default_factory=lambda: [0,1,10,11]) # Flags Removed
+    background_type: str = 'mean' # What type of background subtraction
 # ------------------------------------------------------ #
-    
+
 
 
 # Creates Multi-Try Query
@@ -304,6 +313,7 @@ def genspec(ra, dec, config: genspec_profile):
     bad_bits = config.bad_bits # Which Flags to Mask
     retry_count = config.retry_count # Number of Retries
     clean_type = config.clean_type # Which Method of Bad Pixel Fixes to USE
+    background_type = config.background_type # Which type of background subtraction
     # ------------------------------------ #
 
 
@@ -314,7 +324,8 @@ def genspec(ra, dec, config: genspec_profile):
                              pmra, pmdec, mjd, # Proper Motion Data
                              save_data, output_path, # Saved Data
                              threads, enable_print, ram_download, retry_count, # Misc.
-                             clean_type, bad_bits) # Masking Data
+                             clean_type, bad_bits, # Masking Data
+                             background_type) # Background Type
 
     # Raise Error of User Inputted Variables is Bad
     if verify is False:
@@ -379,6 +390,7 @@ def genspec(ra, dec, config: genspec_profile):
                           [ra, dec], [pmra, pmdec], mjd,
                             r_fwhm, r_annulus_in, r_annulus_out,
                               ram_download, clean_type, bad_bits,
+                                   background_type,
                                    retries = retry_count) for url in urls]
 
         # Prints Start of Query
@@ -521,9 +533,9 @@ def genspec(ra, dec, config: genspec_profile):
       print(f'Average Flux Error: {round(np.nanmean(output['flux_err']))}\n')
 
       # Print Spectral Data
-      print(f'Wavelength Range: {round(np.nanmin(output['mjd']), 1)} to {round(np.nanmax(output['mjd']), 1)}')
+      print(f'Observation Range: {round(np.nanmin(output['mjd']), 1)} to {round(np.nanmax(output['mjd']), 1)}')
+      print(f'Wavelength Range: {round(np.nanmin(output['wavelength']), 3)} to {round(np.nanmax(output['wavelength']), 3)}')
       print(f"Flux Range: {round(np.nanmin(output['flux']), 3)} to {round(np.nanmax(output['flux']), 3)}")
-      print(f'Observation Range: {round(np.nanmin(output['wavelength']), 3)} to {round(np.nanmax(output['wavelength']), 3)}')
 
       # Print Where Data Was Saved
       if save_data == True:
