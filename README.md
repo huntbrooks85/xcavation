@@ -15,7 +15,7 @@
 
 
 <div align="center">
-  <p id="description" > <b>Xcavation</b> is a Python package for rapid forced-photometry calculations of <a href="https://spherex.caltech.edu/">SPHEREx</a> QR2 spectral data. It uses the <code>astroquery.irsa</code> package to access <a href="https://spherex.caltech.edu/">SPHEREx</a> images through the IRSA API. Both aperture and PSF photometry are supported and include multi-threading for improved performance.  </p>
+  <p id="description" > <b>Xcavation</b> is a Python package for rapid forced-photometry calculations of <a href="https://spherex.caltech.edu/">SPHEREx</a> QR2 spectral data. It uses the <code>astroquery.irsa</code> package to access <a href="https://spherex.caltech.edu/">SPHEREx</a> images through the IRSA API. Aperture photometry are supported and include multi-threading for improved deeper analysis.  </p>
 </div>
 
 <div align="center">
