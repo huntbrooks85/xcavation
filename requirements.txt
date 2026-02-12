@@ -13,4 +13,3 @@ emcee
 corner
 pathos
 requests
-lacosmic

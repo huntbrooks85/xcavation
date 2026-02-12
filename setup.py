@@ -3,11 +3,10 @@ from setuptools import setup, find_packages
 
 setup(
     name="xcavation",
-    version="0.4.0",
+    version="0.4.1",
     license="MIT License",
     packages=find_packages(),
     install_requires=[
-            "lacosmic",
             "numpy",
             "scipy",
             "pandas",
@@ -26,7 +25,7 @@ setup(
                     ],
     author="Hunter Brooks",
     author_email="hbrooks8@rockets.utoledo.edu",
-    description="SphereX Data Retrieval and Photometry Toolkit",
+    description="SPHEREx Data Retrieval and Photometry Toolkit",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/huntbrooks85/xcavation",

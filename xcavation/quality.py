@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.quality v0.4.0
-# By Hunter Brooks, at UToledo, Toledo: Jan. 28, 2026
+# xcavation.quality v0.4.1
+# By Hunter Brooks, at UToledo, Toledo: Feb. 12, 2026
 #
 # Purpose: Plotting Tools for SphereX Data
 #-----------------------------------------------------------------------#
@@ -213,6 +213,7 @@ def spectra_plot(output):
   wavelengths = np.array(output['wavelength']) # Wavelength
   fluxes = np.array(output['flux']) # Flux
   errors = np.array(output['flux_err']) # Flux Error
+  flags = np.array(output['flag']) # Flag Count
   # --------------------------------- #
 
 
@@ -222,6 +223,7 @@ def spectra_plot(output):
   wavelengths = wavelengths[sort_idx] # Wavelength Sort
   fluxes = fluxes[sort_idx] # Flux Sort
   errors = errors[sort_idx] # Flux Error Sort
+  flags = flags[sort_idx] # Flag Count Sort
   finite = np.isfinite(fluxes) # Ensures that all Flus Data is Real
   # --------------------------------------------- #
 
@@ -233,12 +235,17 @@ def spectra_plot(output):
                ecolor='slategray', elinewidth=1.5, capsize=3,
                markersize=1, alpha = 0.5)
   plt.step(wavelengths[finite], fluxes[finite], # Plot Errors
-           color='#656D3F', alpha=0.6, where = 'mid')
+           color='k', alpha=0.6, where = 'mid')
+  sc = plt.scatter(wavelengths[finite], fluxes[finite],
+                 c=flags[finite], cmap='jet',
+                 alpha=0.8, s=15) # Plot Flags
   # ------------------------------------ #
 
 
 
   # ------- Make Plot Pretty ------- #
+  plt.colorbar(sc, label='Flag Count') # Colorbar
+
   plt.xlabel("Wavelength [μm]", fontsize=14) # X Label
   plt.ylabel("Flux [μJy]", fontsize=14) # Y Label
 

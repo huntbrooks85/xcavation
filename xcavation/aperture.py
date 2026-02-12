@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.aperture v0.4.0
-# By Hunter Brooks, at UToledo, Toledo: Jan. 28, 2026
+# xcavation.aperture v0.4.1
+# By Hunter Brooks, at UToledo, Toledo: Feb. 12, 2026
 #
 # Purpose: Perform Aperture Photometry on SphereX Data
 #-----------------------------------------------------------------------#
@@ -28,7 +28,6 @@ from .motion import time_mjd, proper_motion
 # Import WCS, Photometry, and Plotting
 # ------------------------------------------------------ #
 from astropy.wcs import WCS
-from lacosmic import remove_cosmics
 from astropy.stats import SigmaClip
 from astropy.coordinates import SkyCoord
 from astropy.nddata.utils import Cutout2D
@@ -92,10 +91,13 @@ def resolving_table(wave):
 # Perform SphereX Wavelength and Aperature Calculation
 # ------------------------------------------------------ #
 def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
-                            r_fwhm, r_annulus_in, r_annulus_out, # Radii
-                             ram_download, # Download Types
-                              clean_type, bad_bits, # Bad Pixel Fixes
-                                background_type): # Background Subraction
+                           r_fwhm, r_annulus_in, r_annulus_out, # Radii
+                           ram_download, # Download Types
+                           clean_type, bad_bits, # Bad Pixel Fixes
+                           background_type, # Background Subraction
+                           cutout_size, # Cutout Size
+                           zodi_subtract, # ZODI Subtraction
+                           sigclip_sigma, sigclip_maxiters): # SigmaClip Valus
     """
     Perform SPHEREx aperture photometry for a given sky position and epoch.
     Downloads SPHEREx FITS file, propagates the input coordinates for
@@ -115,6 +117,11 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
       r_annulus_out:  Outer radius of background annulus in units of FWHM (float)
       ram_download: Download the FITS entirely into memory (bool)
       bad_bits: FLAG extension to mask as bad pixels (list)
+      background_type: Mean, Median, or Mode of Background Annulus (str)
+      cutout_size: Cutout Size in pixels (int)
+      zodi_subtract: Whether ZODI light is subtracted (bool)
+      sigclip_sigma: Background Astropy.SigmaClip sigma level (float)
+      sigclip_maxiters: Background Astropy.SigmaClip max iterations (float)
 
     Returns
     -------
@@ -174,8 +181,11 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
         # Obtain Flux Image
         flux_image_temp =  hdul[1].data.astype(float) # Flux Image
-        zodi_image_temp = hdul[4].data.astype(float) # ZODE Image
-        flux_image = flux_image_temp - zodi_image_temp # Image - ZODI
+        if zodi_subtract == True: 
+          zodi_image_temp = hdul[4].data.astype(float) # ZODI Image
+          flux_image = flux_image_temp - zodi_image_temp # Image - ZODI
+        else: 
+          flux_image = flux_image_temp # Image
         flux_image = flux_image.astype(np.float32, copy=True)
 
         # Obtain Variance Image
@@ -200,16 +210,17 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         # ---------------- Cutouts ---------------- #
         # Cutout of Flux, Variance and WCS Using Inputted Radius
         cutout_flux = Cutout2D(flux_image,
-                                position=coord, size=35, wcs=celestial_wcs)
+                                position=coord, size=cutout_size, wcs=celestial_wcs)
 
         # Returns Null Values if Cutout is Not Correct Size
-        if cutout_flux.shape[0] != 35 or cutout_flux.shape[1] != 35:
+        if cutout_flux.shape[0] != cutout_size or cutout_flux.shape[1] != cutout_size:
           return {
                     "wavelength": np.nan,
                     "delta_lambda": np.nan,
                     "flux": np.nan,
                     "flux_err": np.nan,
                     "flag_count": np.nan,
+                    "flag": np.nan,
                     'SNR': np.nan,
                     "flux_cutout": np.nan,
                     "flag_cutout": np.nan,
@@ -226,11 +237,11 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
         # Cutout each Image, Flag, Variance, and WCS Frames
         cutout_var = Cutout2D(variance_image, # # Variance Cutout
-                                position=coord, size=35, wcs=celestial_wcs)
+                                position=coord, size=cutout_size, wcs=celestial_wcs)
         cutout_flag = Cutout2D(flags, # Flag Cutout
-                                position=coord, size=35, wcs=celestial_wcs)
+                                position=coord, size=cutout_size, wcs=celestial_wcs)
         cutout_mask = Cutout2D(bad_pixel_mask, # Selected Mask Cuout
-                                position=coord, size=35, wcs=celestial_wcs)
+                                position=coord, size=cutout_size, wcs=celestial_wcs)
         cutout_wcs = cutout_flux.wcs # WCS Cutout
 
         # Pull out just cutout data
@@ -265,28 +276,11 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
         # ---------------- Median Masking ---------------- #
         if clean_type == 'median_mask':
-          bad = cutout_flag != 0   # <-- THIS IS THE FIX
+          bad = cutout_flag != 0
           med = median_filter(cutout_flux, size=5, mode='mirror')
           cutout_flux[bad] = med[bad]
         # ------------------------------------------------ #
 
-
-
-        # ---------------- LaCosmic Masking ---------------- #
-        # Clean Image and Variance Cutouts Using Astroscrappy
-        if clean_type == 'lacosmic':
-          from astropy import log
-          log.setLevel('ERROR')
-
-          cutout_flux, crmask = remove_cosmics(
-                                              cutout_flux,                  # flux array
-                                              contrast=1.5,                 # typical SPHEREx PSF sampling ~ 1–2 px
-                                              cr_threshold=20,              # Laplacian S/N threshold
-                                              neighbor_threshold=50,        # grows cosmic rays
-                                              error=np.sqrt(cutout_var),    # variance array as 1-sigma error
-                                              # mask=~cutout_mask,          # bad pixels / saturated stars
-                                              maxiter=4,
-                                              border_mode='nearest')
         del bad_pixel_mask # Delete Mask to Save on RAM
         # -------------------------------------------------- #
 
@@ -327,7 +321,7 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
         # ----- Background Frame ----- #
         # Calculates Background Frame
-        sigclip = SigmaClip(sigma=5.0, maxiters=5) # Sigma Clip For Background
+        sigclip = SigmaClip(sigma=sigclip_sigma, maxiters=sigclip_maxiters) # Sigma Clip For Background
         if background_type == 'mean':
           bkg_per_pix = (ApertureStats(flux_ujy, annulus_ap,
                           sigma_clip=sigclip)).mean # Average Annulus Background
@@ -390,7 +384,8 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         ap_flags = cutout_flag.data[ap_pixels]
 
         # Queried Array
-        bit_counts = {} # Empty Array
+        total_bit_counts = {} # Empty Array
+        bit_counts = 0
         total_bad_bits = [0, 1, 2, 4, 5, 6, 7,
                           9, 10, 11, 12, 14, 15,
                           17, 19, 21]
@@ -398,7 +393,12 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         # Counts Each Flag in the Aperture
         for bit in total_bad_bits:
             bitmask = 1 << bit # Convert to bit
-            bit_counts[bit] = np.count_nonzero(ap_flags & bitmask) # Count
+            total_bit_counts[bit] = np.count_nonzero(ap_flags & bitmask) # Count
+
+        # Counts Each Flag in the Aperture
+        for bit in bad_bits:
+            bitmask = 1 << bit # Convert to bit
+            bit_counts += np.count_nonzero(ap_flags & bitmask) # Count
         # ------------------------------- #
 
 
@@ -434,7 +434,8 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         "delta_lambda": resolving_table(wave_point),
         "flux": flux_ap,
         "flux_err": flux_err,
-        "flag_count": bit_counts,
+        "flag_count": total_bit_counts,
+        "flag": bit_counts,
         "SNR": (flux_ap/flux_err),
         "flux_cutout": flux_ujy,
         "flag_cutout": cutout_flag.data,

@@ -1,4 +1,3 @@
-lacosmic
 numpy
 scipy
 pandas

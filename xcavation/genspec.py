@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.genspec v0.4.0
-# By Hunter Brooks, at UToledo, Toledo: Jan. 28, 2026
+# xcavation.genspec v0.4.1
+# By Hunter Brooks, at UToledo, Toledo: Feb. 12, 2026
 #
 # Purpose: Main API Function for SphereX Data Retrieval and Photometry
 #-----------------------------------------------------------------------#
@@ -55,7 +55,10 @@ def variable_verify(ra, dec, # Core Inputs
                     threads, # Number of Multi-Threads
                     enable_print, ram_download, retry_count, # User Control
                     clean_type, bad_bits, # Cleaning Flux Data
-                    background_type):
+                    background_type, # Background Type
+                    cutout_size, # Cutout Size
+                    zodi_subtract, # ZODI Light Subtraction
+                    sigclip_sigma, sigclip_maxiters): # Astropy.SigmaClip
   """
   Verify user input parameters for SPHEREx aperture photometry.
 
@@ -77,6 +80,10 @@ def variable_verify(ra, dec, # Core Inputs
     retry_count: Number of times to retry downloading a file (int)
     clean_type: Method for cleaning flux data (str)
     bad_bits: List of bit indices in FLAG extension (list)
+    cutout_size: Cutout Size in Pixels
+    zodi_subtract: Whether to subtract ZODI light
+    sigclip_sigma: Astropy.SigmaClip(sigma=5.0)
+    sigclip_maxiters: Astropy.SigmaClip(maxiters=5)
 
   Returns
   -------
@@ -155,9 +162,8 @@ def variable_verify(ra, dec, # Core Inputs
     return False
 
   # Checks Clean Type Variable
-  if ((clean_type != 'none') and (clean_type != 'lacosmic')
-      and (clean_type != 'mask') and (clean_type != 'median_mask')
-        and (clean_type != 'interp_mask')):
+  if ((clean_type != 'none') and (clean_type != 'mask')
+      and (clean_type != 'median_mask') and (clean_type != 'interp_mask')):
     print('Please Input a Valid: Clean Tyle (none, laplacian, mask)')
     print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
     return False
@@ -172,6 +178,30 @@ def variable_verify(ra, dec, # Core Inputs
   # Checks Flagged Variable List
   if (type(bad_bits) is not list) or (len(bad_bits) < 1):
     print('Please Input a Valid: Bad Bits (list)')
+    print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
+    return False
+
+  # Checks Cutout Size
+  if (type(cutout_size) is not int) or (cutout_size < 1):
+    print('Please Input a Valid: Cutout Size (int)')
+    print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
+    return False
+
+  # Checks ZODI Variable
+  if (type(zodi_subtract) is not bool):
+    print('Please Input a Valid: ZODI Subtraction (bool)')
+    print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
+    return False
+
+  # Checks sigclip_sigma Variable
+  if ((type(sigclip_sigma) is not float) and (type(sigclip_sigma) is not int)) or (sigclip_sigma < 0):
+    print('Please Input a Valid: SigmaClip (float)')
+    print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
+    return False
+
+  # Checks sigclip_maxiters Variable
+  if ((type(sigclip_maxiters) is not float) and (type(sigclip_maxiters) is not int)) or (sigclip_maxiters < 0):
+    print('Please Input a Valid: Max Iterations (float)')
     print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
     return False
 
@@ -200,6 +230,10 @@ class genspec_profile:
     clean_type: str = 'none' # What type of Image Cleaning
     bad_bits: list = field(default_factory=lambda: [0,1,10,11]) # Flags Removed
     background_type: str = 'mean' # What type of background subtraction
+    cutout_size: int = 35 # Cutout Size in Pixels
+    zodi_subtract: bool = True # Whether ZODI Light is subtracted
+    sigclip_sigma: float = 5 # Astropy.SigmaClip(sigma=5.0)
+    sigclip_maxiters: float = 5 # Astropy.SigmaClip(maxiters=5)
 # ------------------------------------------------------ #
 
 
@@ -289,6 +323,14 @@ def genspec(ra, dec, config: genspec_profile):
               Source FITS URL.
           - mjd: float
               Observation MJD
+          - cutout_size
+              Cutout Size in Pixels
+          - zodi_subtract
+              Whether to subtract ZODI light
+          - sigclip_sigma
+              Astropy.SigmaClip(sigma=5.0)
+          - sigclip_maxiters
+              Astropy.SigmaClip(maxiters=5)
 
     Raises
     ------
@@ -314,6 +356,10 @@ def genspec(ra, dec, config: genspec_profile):
     retry_count = config.retry_count # Number of Retries
     clean_type = config.clean_type # Which Method of Bad Pixel Fixes to USE
     background_type = config.background_type # Which type of background subtraction
+    cutout_size = config.cutout_size # Cutout Size in Pixels
+    zodi_subtract = config.zodi_subtract # Whether ZODI Light is subtracted
+    sigclip_sigma = config.sigclip_sigma # Astropy.SigmaClip(sigma=5.0)
+    sigclip_maxiters = config.sigclip_maxiters # Astropy.SigmaClip(maxiters=5)
     # ------------------------------------ #
 
 
@@ -325,7 +371,10 @@ def genspec(ra, dec, config: genspec_profile):
                              save_data, output_path, # Saved Data
                              threads, enable_print, ram_download, retry_count, # Misc.
                              clean_type, bad_bits, # Masking Data
-                             background_type) # Background Type
+                             background_type, # Background Type
+                             cutout_size, # Cutout Size
+                             zodi_subtract, # ZODI Light Subtraction
+                             sigclip_sigma, sigclip_maxiters) # Astropy.SigmaClip
 
     # Raise Error of User Inputted Variables is Bad
     if verify is False:
@@ -391,6 +440,9 @@ def genspec(ra, dec, config: genspec_profile):
                             r_fwhm, r_annulus_in, r_annulus_out,
                               ram_download, clean_type, bad_bits,
                                    background_type,
+                                   cutout_size, 
+                                   zodi_subtract, 
+                                   sigclip_sigma, sigclip_maxiters,
                                    retries = retry_count) for url in urls]
 
         # Prints Start of Query
@@ -417,6 +469,7 @@ def genspec(ra, dec, config: genspec_profile):
                 "flux": result["flux"], # Aperture Flux
                 "flux_err": result["flux_err"], # Aperture Flux Error
                 "flag_count": str(result["flag_count"]), # Dict. of Flags
+                "flag": result["flag"], # Bad Bit Count Flag
                 "SNR": result["SNR"], # Signal-to-Noise Ratio
                 "flux_cutout": result["flux_cutout"], # Flux Cutout
                 "flag_cutout": result["flag_cutout"], # Bool. Flag Cutout
@@ -455,14 +508,12 @@ def genspec(ra, dec, config: genspec_profile):
         print('Finder Chart Was Successfully Saved')
         print(f'Spectral Plot of: R.A. = {round(ra, 3)} (deg) and Decl. = {round(dec, 3)} (deg)')
 
-      # Plots Spectral Plot
-      spectra_plot(output)
-
       # Gets Relevant Data for Table
       lambda_list = np.array(output['wavelength']) # Wavelength
       flux_list = np.array(output['flux']) # Flux
       flux_err_list = np.array(output['flux_err']) # Flux Error
       delta_lambda = np.array(output['delta_lambda']) # Resolving Power
+      flag = np.array(output['flag']) # Flag Count
       flag_count = np.array(output['flag_count']) # Flag Dictionary
 
       # Sort Relevant Data Based on Wavelength
@@ -471,12 +522,13 @@ def genspec(ra, dec, config: genspec_profile):
       flux_list = flux_list[sort_idx] # Sort Flux
       flux_err_list = flux_err_list[sort_idx] # Sort Flux Error
       delta_lambda = delta_lambda[sort_idx] # Sort Resolving Power
+      flag = flag[sort_idx] # Flag Count
       flag_count = flag_count[sort_idx] # Sort Flag Dictionary
 
       # Creates Table with Header
       t = Table([lambda_list, flux_list, flux_err_list,
-              delta_lambda, flag_count],
-          names=('lambda', 'flux', 'flux_err', 'delta_lambda', 'flag_count'))
+              delta_lambda, flag, flag_count],
+          names=('lambda', 'flux', 'flux_err', 'delta_lambda', 'flag', 'flag_count'))
 
       # Opens Created Files To Edit
       with open(output_path + '.txt', 'w') as f:
@@ -502,7 +554,8 @@ def genspec(ra, dec, config: genspec_profile):
           f.write(f'# Column 2: Flux (uJy)\n')
           f.write(f'# Column 3: Flux Error (uJy)\n')
           f.write(f'# Column 4: Delta Lambda (microns)\n')
-          f.write(f'# Column 5: Aperture Flag Bit Count (dictionary)\n')
+          f.write(f'# Column 5: Number of Flags (int)\n')
+          f.write(f'# Column 6: Aperture Flag Bit Count (dictionary)\n')
           t.write(f, format='ascii.commented_header', overwrite=True)
 
       # Print Finished Saving Data
@@ -518,6 +571,10 @@ def genspec(ra, dec, config: genspec_profile):
       print('+====================================================================+')
       print('              xcavation Spectrophotometry Tool Summary')
       print('+====================================================================+')
+
+      # Plots Spectral Plot
+      print(f"Spectra Plot:")
+      spectra_plot(output)
 
       # Print Coordinate Data
       print(f"Queried Coordinates: R.A. = {round(ra_deg, 6)} (deg), Decl. = {round(dec_deg, 6)} (deg)") # Print Adjusted Coordinates
