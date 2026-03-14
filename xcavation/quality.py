@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.quality v0.4.1
-# By Hunter Brooks, at UToledo, Toledo: Feb. 12, 2026
+# xcavation.quality v1.0.0
+# By Hunter Brooks, at UToledo, Toledo: Mar. 14, 2026
 #
 # Purpose: Plotting Tools for SphereX Data
 #-----------------------------------------------------------------------#
@@ -38,8 +38,7 @@ plt.rcParams.update({
   'axes.linewidth': 1.2,
   'legend.fontsize': 12
                   })
-  # ------------------------------------------------------ #
-
+# ------------------------------------------------------ #
 
 
 
@@ -152,7 +151,7 @@ def finder_chart(output, pdf_path):
         ax.add_patch(out_an) # Outer Annulus
 
         # General Subplot Looks
-        ax.set_title(f"$λ$: {wavelength:.4f} μm and $F_λ$: {flux:.0f}", fontsize=12)
+        ax.set_title(f"$λ$: {wavelength:.4f} μm and $F_ν$: {flux:.0f} μJy", fontsize=12)
         ax.axis('off') # Turn off axis
         valid_count += 1 # Counts Valid Plots
   # ------------------------------------------ #

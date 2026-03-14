@@ -13,3 +13,4 @@ emcee
 corner
 pathos
 requests
+pyvo

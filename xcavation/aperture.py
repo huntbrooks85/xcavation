@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.aperture v0.4.1
-# By Hunter Brooks, at UToledo, Toledo: Feb. 12, 2026
+# xcavation.aperture v1.0.0
+# By Hunter Brooks, at UToledo, Toledo: Mar. 14, 2026
 #
 # Purpose: Perform Aperture Photometry on SphereX Data
 #-----------------------------------------------------------------------#
@@ -90,7 +90,7 @@ def resolving_table(wave):
 
 # Perform SphereX Wavelength and Aperature Calculation
 # ------------------------------------------------------ #
-def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
+def spherex_aperature_phot(url_og, coord, pm, mjd,  # Coords
                            r_fwhm, r_annulus_in, r_annulus_out, # Radii
                            ram_download, # Download Types
                            clean_type, bad_bits, # Bad Pixel Fixes
@@ -148,9 +148,11 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
     # ----- Download FITS entirely in RAM ----- #
     if ram_download is True:
-      resp = requests.get(url)
+      resp = requests.get(url_og)
       resp.raise_for_status()
       url = BytesIO(resp.content)
+    else:
+      url = url_og
     # ----------------------------------------- #
 
 
@@ -181,10 +183,10 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
         # Obtain Flux Image
         flux_image_temp =  hdul[1].data.astype(float) # Flux Image
-        if zodi_subtract == True: 
+        if zodi_subtract == True:
           zodi_image_temp = hdul[4].data.astype(float) # ZODI Image
           flux_image = flux_image_temp - zodi_image_temp # Image - ZODI
-        else: 
+        else:
           flux_image = flux_image_temp # Image
         flux_image = flux_image.astype(np.float32, copy=True)
 
@@ -207,82 +209,35 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
 
 
-        # ---------------- Cutouts ---------------- #
-        # Cutout of Flux, Variance and WCS Using Inputted Radius
-        cutout_flux = Cutout2D(flux_image,
-                                position=coord, size=cutout_size, wcs=celestial_wcs)
-
-        # Returns Null Values if Cutout is Not Correct Size
-        if cutout_flux.shape[0] != cutout_size or cutout_flux.shape[1] != cutout_size:
-          return {
-                    "wavelength": np.nan,
-                    "delta_lambda": np.nan,
-                    "flux": np.nan,
-                    "flux_err": np.nan,
-                    "flag_count": np.nan,
-                    "flag": np.nan,
-                    'SNR': np.nan,
-                    "flux_cutout": np.nan,
-                    "flag_cutout": np.nan,
-                    "aperture": np.nan,
-                    "annulus": np.nan,
-                    "x_loc": np.nan,
-                    "y_loc": np.nan,
-                    "ap_radius": np.nan,
-                    "inner_annulus": np.nan,
-                    "outer_annulus": np.nan,
-                    "url": url,
-                    "mjd": np.nan
-                }
-
-        # Cutout each Image, Flag, Variance, and WCS Frames
-        cutout_var = Cutout2D(variance_image, # # Variance Cutout
-                                position=coord, size=cutout_size, wcs=celestial_wcs)
-        cutout_flag = Cutout2D(flags, # Flag Cutout
-                                position=coord, size=cutout_size, wcs=celestial_wcs)
-        cutout_mask = Cutout2D(bad_pixel_mask, # Selected Mask Cuout
-                                position=coord, size=cutout_size, wcs=celestial_wcs)
-        cutout_wcs = cutout_flux.wcs # WCS Cutout
-
-        # Pull out just cutout data
-        cutout_mask = cutout_mask.data
-        cutout_flux = cutout_flux.data
-        cutout_var = cutout_var.data
-        # ----------------------------------------- #
-
-
-
         # ---------------- Interpolated Masking ---------------- #
         if clean_type == 'interp_mask':
-          ny, nx = cutout_flux.shape
+          ny, nx = flux_image.shape
           y, x = np.mgrid[0:ny, 0:nx]
 
           # Good pixels only
-          good = (~cutout_mask) & np.isfinite(cutout_flux)
+          good = (~bad_pixel_mask) & np.isfinite(flux_image)
 
           # Coordinates and values of good pixels
           points = np.column_stack((x[good], y[good]))
-          values_flux = cutout_flux[good]
-          values_var = cutout_var[good]
+          values_flux = flux_image[good]
+          values_var = variance_image[good]
 
           # Interpolate over full grid
           interp_flux = griddata(points, values_flux, (x, y), method='nearest')
           interp_var = griddata(points, values_var, (x, y), method='nearest')
-          cutout_flux[cutout_mask] = interp_flux[cutout_mask]
-          cutout_var[cutout_mask] = interp_var[cutout_mask]
+          flux_image[bad_pixel_mask] = interp_flux[bad_pixel_mask]
+          variance_image[bad_pixel_mask] = interp_var[bad_pixel_mask]
         # ------------------------------------------------------ #
 
 
 
         # ---------------- Median Masking ---------------- #
         if clean_type == 'median_mask':
-          bad = cutout_flag != 0
-          med = median_filter(cutout_flux, size=5, mode='mirror')
-          cutout_flux[bad] = med[bad]
+          bad = flags != 0
+          med = median_filter(flux_image, size=5, mode='mirror')
+          flux_image[bad] = med[bad]
         # ------------------------------------------------ #
-
         del bad_pixel_mask # Delete Mask to Save on RAM
-        # -------------------------------------------------- #
 
 
 
@@ -290,8 +245,8 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         # ---------------- Convert Units ---------------- #
         # Converts Units of Flux and Variance Cutout
         pixel_area_sr = (pixel_scale_deg * np.pi / 180)**2 # Pixel^2 to Sr
-        flux_ujy = cutout_flux * 1e6 * pixel_area_sr * 1e6 # Flux Convert
-        var_ujy = cutout_var * (1e6 * pixel_area_sr * 1e6)**2 # Variance Convert
+        flux_ujy = flux_image * 1e6 * pixel_area_sr * 1e6 # Flux Convert
+        var_ujy = variance_image * (1e6 * pixel_area_sr * 1e6)**2 # Variance Convert
         # ----------------------------------------------- #
 
 
@@ -299,7 +254,7 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
         # ----- Set-Up Aperture Photometry ----- #
         # Gets x, y Pixel Locations and FWHM
-        x_query, y_query = cutout_wcs.world_to_pixel(coord) # Cutouts Coords.
+        x_query, y_query = celestial_wcs.world_to_pixel(coord) # Cutouts Coords.
         fwhm = hdul[1].header['PSF_FWHM'] # Image FWHM
 
         # Aperature Set-Up
@@ -336,12 +291,33 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
         # Calculate Aperture Area (w/ or w/o mask)
         if clean_type == 'mask':
-          good_ap_mask = ap_mask * (~cutout_mask) # w/ mask
+          good_ap_mask = ap_mask * (~bad_pixel_mask) # w/ mask
         else:
           good_ap_mask = ap_mask # w/o mask
 
         # Calcualtes Final Background Frame
         area = np.sum(good_ap_mask) # Total Aperture Area
+        if str(area) == 'None':
+          return {
+                  "wavelength": np.nan,
+                  "delta_lambda": np.nan,
+                  "flux": np.nan,
+                  "flux_err": np.nan,
+                  "flag_count": np.nan,
+                  "flag": np.nan,
+                  "SNR": np.nan,
+                  "flux_cutout": np.nan,
+                  "flag_cutout": np.nan,
+                  "aperture": np.nan,
+                  "annulus": np.nan,
+                  "x_loc": np.nan,
+                  "y_loc": np.nan,
+                  "ap_radius": np.nan,
+                  "inner_annulus": np.nan,
+                  "outer_annulus": np.nan,
+                  "url": url_og,
+                  "mjd": np.nan
+                  }
         total_bkg = bkg_per_pix * area # Background Frame in Aperture Area
         # ---------------------------- #
 
@@ -351,7 +327,7 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         # Calculates the Aperature Photometry (w/ or w/o mask)
         if clean_type == 'mask':
           phot_table = aperture_photometry(flux_ujy, aperture,
-                                           mask = cutout_mask) # w/ mask
+                                           mask = bad_pixel_mask) # w/ mask
         else:
           phot_table = aperture_photometry(flux_ujy, aperture) # w/o mask
         flux_ap = phot_table['aperture_sum'][0] - total_bkg # Final Aperture
@@ -363,7 +339,7 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         # Aperture Error (w/ or w/o mask)
         if clean_type == 'mask':
           phot_var_table = aperture_photometry(var_ujy, aperture,
-                                                mask = cutout_mask) # w/ mask
+                                                mask = bad_pixel_mask) # w/ mask
         else:
           phot_var_table = aperture_photometry(var_ujy, aperture) # w/o mask
 
@@ -381,7 +357,7 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         # ----- Flag Aperture Count ----- #
         # Gets the Pixels in the Aperture
         ap_pixels = ap_mask > 0
-        ap_flags = cutout_flag.data[ap_pixels]
+        ap_flags = flags[ap_pixels]
 
         # Queried Array
         total_bit_counts = {} # Empty Array
@@ -411,7 +387,9 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
 
         # Obtains Wavelength Average
         x_query_total, y_query_total = celestial_wcs.world_to_pixel(coord)
-        wave_point = wave[int(y_query_total), int(x_query_total)] # Wavelength
+        y = int(np.clip(y_query_total, 0, wave.shape[0] - 1))
+        x = int(np.clip(x_query_total, 0, wave.shape[1] - 1))
+        wave_point = wave[y, x] # Wavelength
         # ---------------------- #
     # ------------------------------------------- #
 
@@ -422,8 +400,8 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
     an_mask_obj = annulus_ap.to_mask(method='exact') # Annulus Mask
 
     # Convert to image-sized arrays
-    ap_mask = ap_mask_obj.to_image(cutout_flux.shape) # Aperture
-    an_mask = an_mask_obj.to_image(cutout_flux.shape) # Annulus
+    ap_mask = ap_mask_obj.to_image(flux_image.shape) # Aperture
+    an_mask = an_mask_obj.to_image(flux_image.shape) # Annulus
     # ----------------------------------------- #
 
 
@@ -438,7 +416,7 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         "flag": bit_counts,
         "SNR": (flux_ap/flux_err),
         "flux_cutout": flux_ujy,
-        "flag_cutout": cutout_flag.data,
+        "flag_cutout": flags.data,
         "aperture": ap_mask,
         "annulus": an_mask,
         "x_loc": x_query,
@@ -446,7 +424,7 @@ def spherex_aperature_phot(url, coord, pm, mjd,  # Coords
         "ap_radius": r_fwhm * fwhm,
         "inner_annulus": r_annulus_in * fwhm,
         "outer_annulus": r_annulus_out * fwhm,
-        "url": url,
+        "url": url_og,
         "mjd": spectral_header['MJD-OBS']
     }
     # ----------------------------- #

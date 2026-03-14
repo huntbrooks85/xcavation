@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.genspec v0.4.1
-# By Hunter Brooks, at UToledo, Toledo: Feb. 12, 2026
+# xcavation.genspec v1.0.0
+# By Hunter Brooks, at UToledo, Toledo: Mar. 14, 2026
 #
 # Purpose: Main API Function for SphereX Data Retrieval and Photometry
 #-----------------------------------------------------------------------#
@@ -27,6 +27,16 @@ from datetime import datetime
 from astropy.table import Table
 from astroquery.ipac.irsa import Irsa
 from dataclasses import dataclass, field
+# ------------------------------------------------------ #
+
+
+
+# Import PYVO Query Features
+# ------------------------------------------------------ #
+import pyvo
+import http.client
+import urllib.error
+from astropy.utils.data import conf
 # ------------------------------------------------------ #
 
 
@@ -80,7 +90,7 @@ def variable_verify(ra, dec, # Core Inputs
     retry_count: Number of times to retry downloading a file (int)
     clean_type: Method for cleaning flux data (str)
     bad_bits: List of bit indices in FLAG extension (list)
-    cutout_size: Cutout Size in Pixels
+    cutout_size: Cutout Size in arcsec
     zodi_subtract: Whether to subtract ZODI light
     sigclip_sigma: Astropy.SigmaClip(sigma=5.0)
     sigclip_maxiters: Astropy.SigmaClip(maxiters=5)
@@ -216,8 +226,8 @@ def variable_verify(ra, dec, # Core Inputs
 @dataclass
 class genspec_profile:
     r_fwhm: float = 2 # Aperture Radius FWHM
-    r_annulus_in: float = 7.5 # Inner Annulus Radius FWHM
-    r_annulus_out: float = 15 # Outer Annulus Radius FWHM
+    r_annulus_in: float = 3.5 # Inner Annulus Radius FWHM
+    r_annulus_out: float = 10 # Outer Annulus Radius FWHM
     pmra: float = 0 # Proper Motion R.A. (arcsec/yr)
     pmdec: float = 0 # Proper Motion Decl. (arcsec/yr)
     mjd: float = 61000 # Modified Julian Date
@@ -226,11 +236,11 @@ class genspec_profile:
     threads: int = 1 # Number of Threads for Multi-Threading
     enable_print: bool = True # Whether to Print
     ram_download: bool = False # Download Images to RAM
-    retry_count: int = 10 # How Many HTML Retries
+    retry_count: int = 25 # How Many HTML Retries
     clean_type: str = 'none' # What type of Image Cleaning
     bad_bits: list = field(default_factory=lambda: [0,1,10,11]) # Flags Removed
     background_type: str = 'mean' # What type of background subtraction
-    cutout_size: int = 35 # Cutout Size in Pixels
+    cutout_size: int = 150 # Cutout Size in arcsec
     zodi_subtract: bool = True # Whether ZODI Light is subtracted
     sigclip_sigma: float = 5 # Astropy.SigmaClip(sigma=5.0)
     sigclip_maxiters: float = 5 # Astropy.SigmaClip(maxiters=5)
@@ -262,12 +272,22 @@ def retry(func, *args, retries=10, delay=0.5, **kwargs):
 
     # ----- Repeat Calling Loop ----- #
     for attempt in range(1, retries + 1):
-        try: # Call main function (aperture photometry)
+        try:  # Call main function (aperture photometry)
             return func(*args, **kwargs)
-        except Exception as e: # If failed retry (usual fail is HTML)
-            if attempt < retries: # Keep Going if more retries
+
+        except Exception as e:
+            err_msg = str(e)
+
+            # Special handling for 502 Bad Gateway
+            if "502 Server Error" in err_msg and "Bad Gateway" in err_msg:
+                print(f"[Attempt {attempt}/{retries}] Query failed with 502 Bad Gateway, Retrying..... ")
+            else:
+                print(f"[Attempt {attempt}/{retries}] Error occurred: {err_msg}")
+
+            if attempt < retries:  # Keep going if retries remain
                 time.sleep(delay)
-            else: # Fail if max retries reached
+            else:  # Fail if max retries reached
+                print("Maximum retries reached. Returning None.")
                 return None
     # ------------------------------- #
 # ------------------------------------------------------ #
@@ -324,7 +344,7 @@ def genspec(ra, dec, config: genspec_profile):
           - mjd: float
               Observation MJD
           - cutout_size
-              Cutout Size in Pixels
+              Cutout Size in Arcsec
           - zodi_subtract
               Whether to subtract ZODI light
           - sigclip_sigma
@@ -356,7 +376,7 @@ def genspec(ra, dec, config: genspec_profile):
     retry_count = config.retry_count # Number of Retries
     clean_type = config.clean_type # Which Method of Bad Pixel Fixes to USE
     background_type = config.background_type # Which type of background subtraction
-    cutout_size = config.cutout_size # Cutout Size in Pixels
+    cutout_size = config.cutout_size # Cutout Size in Arcsec
     zodi_subtract = config.zodi_subtract # Whether ZODI Light is subtracted
     sigclip_sigma = config.sigclip_sigma # Astropy.SigmaClip(sigma=5.0)
     sigclip_maxiters = config.sigclip_maxiters # Astropy.SigmaClip(maxiters=5)
@@ -404,10 +424,23 @@ def genspec(ra, dec, config: genspec_profile):
 
     # ----- SphereX Query ----- #
     # Query For All SPHEREx URLs in a Nearby Search
-    coord = SkyCoord(ra_deg, dec_deg, unit='deg') # Convert to astropy Units
-    results = Irsa.query_sia(pos=(coord, 10 * u.arcsec),
-              collection='spherex_qr2') # Query SphereX QR2 (Will Need Updates)
-    urls = results["access_url"] # Gets the Image URLs
+    ra_deg, dec_deg = ra_deg * u.degree, dec_deg * u.degree # Convert to astropy Units
+    size = cutout_size/3600 * u.degree
+    service = pyvo.dal.TAPService("https://irsa.ipac.caltech.edu/TAP")
+    # Query SphereX QR2 (Will Need Updates)
+
+    query = f"""
+              SELECT
+                  'https://irsa.ipac.caltech.edu/' || a.uri || '?center={ra_deg.value},{dec_deg.value}d&size={size.value}' AS uri,
+                  p.time_bounds_lower
+              FROM spherex.artifact a
+              JOIN spherex.plane p ON a.planeid = p.planeid
+              WHERE 1 = CONTAINS(POINT('ICRS', {ra_deg.value}, {dec_deg.value}), p.poly)
+              ORDER BY p.time_bounds_lower
+            """
+
+    results = service.search(query)
+    urls = results['uri'].tolist() # Gets the Image URLs
 
     # Read in the Number of Each Detectors
     D1, D2, D3, D4, D5, D6 = 0, 0, 0, 0, 0, 0 # Creates Empty Numbers
@@ -440,8 +473,8 @@ def genspec(ra, dec, config: genspec_profile):
                             r_fwhm, r_annulus_in, r_annulus_out,
                               ram_download, clean_type, bad_bits,
                                    background_type,
-                                   cutout_size, 
-                                   zodi_subtract, 
+                                   cutout_size,
+                                   zodi_subtract,
                                    sigclip_sigma, sigclip_maxiters,
                                    retries = retry_count) for url in urls]
 
@@ -514,6 +547,7 @@ def genspec(ra, dec, config: genspec_profile):
       flux_err_list = np.array(output['flux_err']) # Flux Error
       delta_lambda = np.array(output['delta_lambda']) # Resolving Power
       flag = np.array(output['flag']) # Flag Count
+      mjd_list = np.array(output['mjd']) # MJD List
       flag_count = np.array(output['flag_count']) # Flag Dictionary
 
       # Sort Relevant Data Based on Wavelength
@@ -523,12 +557,13 @@ def genspec(ra, dec, config: genspec_profile):
       flux_err_list = flux_err_list[sort_idx] # Sort Flux Error
       delta_lambda = delta_lambda[sort_idx] # Sort Resolving Power
       flag = flag[sort_idx] # Flag Count
+      mjd_list = mjd_list[sort_idx] # Sorted MJD List
       flag_count = flag_count[sort_idx] # Sort Flag Dictionary
 
       # Creates Table with Header
       t = Table([lambda_list, flux_list, flux_err_list,
-              delta_lambda, flag, flag_count],
-          names=('lambda', 'flux', 'flux_err', 'delta_lambda', 'flag', 'flag_count'))
+              delta_lambda, flag, mjd_list, flag_count],
+          names=('lambda', 'flux', 'flux_err', 'delta_lambda', 'flag', 'mjd', 'flag_count'))
 
       # Opens Created Files To Edit
       with open(output_path + '.txt', 'w') as f:
@@ -555,7 +590,8 @@ def genspec(ra, dec, config: genspec_profile):
           f.write(f'# Column 3: Flux Error (uJy)\n')
           f.write(f'# Column 4: Delta Lambda (microns)\n')
           f.write(f'# Column 5: Number of Flags (int)\n')
-          f.write(f'# Column 6: Aperture Flag Bit Count (dictionary)\n')
+          f.write(f'# Column 6: MJD of Observation (float)\n')
+          f.write(f'# Column 7: Aperture Flag Bit Count (dictionary)\n')
           t.write(f, format='ascii.commented_header', overwrite=True)
 
       # Print Finished Saving Data

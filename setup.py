@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="xcavation",
-    version="0.4.1",
+    version="1.0.0",
     license="MIT License",
     packages=find_packages(),
     install_requires=[
@@ -21,7 +21,8 @@ setup(
             "emcee",
             "corner",
             "pathos",
-            "requests"
+            "requests", 
+            "pyvo"
                     ],
     author="Hunter Brooks",
     author_email="hbrooks8@rockets.utoledo.edu",

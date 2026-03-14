@@ -14,7 +14,7 @@
 </div>
 
 <div align="center">
-  <p id="description" > <b>Xcavation</b> is a Python package for rapid forced-photometry calculations of <a href="https://spherex.caltech.edu/">SPHEREx</a> QR2 spectral data. It uses the <code>astroquery.irsa</code> package to access <a href="https://spherex.caltech.edu/">SPHEREx</a> images through the IRSA API. Aperture photometry are supported and include multi-threading for improved deeper analysis.  </p>
+  <p id="description" > <b>Xcavation</b> is a Python package for rapid forced-photometry calculations of <a href="https://spherex.caltech.edu/">SPHEREx</a> QR2 spectral data. It uses ASQL PyVo to access <a href="https://spherex.caltech.edu/">SPHEREx</a> images through the IRSA API. Aperture photometry are supported and include multi-threading for improved deeper analysis.  </p>
 </div>
 
 <div align="center">
@@ -23,7 +23,7 @@
 
 <div align="center">
   <p style="font-size: 1.2em;"> <b>
-      The example notebook is provided through <a href="https://drive.google.com/file/d/1S0iLap2IoNdk4ErpdEyMyipBvJeaJ3ay/view?usp=sharing">Google Colab</a>, as it has excellent internet speed for the image API.
+      The example notebook is provided through <a href="https://drive.google.com/file/d/1S0iLap2IoNdk4ErpdEyMyipBvJeaJ3ay/view?usp=sharing">Google Colab</a>, as it has excellent internet speed for the image API. Additionally, there is an example notebook provided on the GitHub repository. 
     </b> </p>
 </div>
 
