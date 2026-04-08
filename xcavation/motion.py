@@ -1,9 +1,9 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.motion v1.0.0
-# By Hunter Brooks, at UToledo, Toledo: Marc. 14, 2026
+# xcavation.motion v1.0.1
+# By Hunter Brooks, at UToledo, Toledo: Apr. 08, 2026
 #
-# Purpose: Propogate celestial coordinates using proper motion
+# Purpose: Propagate celestial coordinates using proper motion
 #-----------------------------------------------------------------------#
 
 
@@ -14,7 +14,6 @@ import numpy as np
 from astropy.time import Time
 from datetime import datetime
 # ------------------------------------------------------ #
-
 
 
 

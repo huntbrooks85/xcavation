@@ -1,7 +1,7 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.genspec v1.0.0
-# By Hunter Brooks, at UToledo, Toledo: Mar. 14, 2026
+# xcavation.genspec v1.0.1
+# By Hunter Brooks, at UToledo, Toledo: Apr. 08, 2026
 #
 # Purpose: Main API Function for SphereX Data Retrieval and Photometry
 #-----------------------------------------------------------------------#
@@ -60,7 +60,7 @@ from concurrent.futures import ThreadPoolExecutor
 # ------------------------------------------------------ #
 def variable_verify(ra, dec, # Core Inputs
                     r_fwhm, r_annulus_in, r_annulus_out, # Photometry Radii
-                    pmra, pmdec, mjd, # Proper Motion Propagation
+                    pmra, pmdec, mjd_epoch, mjd_query, # Proper Motion Propagation
                     save_data, output_path, # Saved Data
                     threads, # Number of Multi-Threads
                     enable_print, ram_download, retry_count, # User Control
@@ -102,35 +102,34 @@ def variable_verify(ra, dec, # Core Inputs
   """
 
   # Checks R.A. Decl. Inputs
-  if ((type(ra) is not float) or (type(dec) is not float)
-                or (0 >= ra >= 360) or (-90 >= dec >= 90)):
+  if (isinstance(ra, (int, float)) or isinstance(dec, (int, float))
+                or (0 <= ra <= 360) or (-90 <= dec <= 90)) == False:
     print('Please Input Valid: R.A. (deg, float) or Decl. (deg, float)')
     return False
 
   # Checks PMRA, PMDEC, and MJD Inputs
-  if (((type(pmra) is not float) and (type(pmra) is not int))
-      or ((type(pmdec) is not float) and (type(pmdec) is not int))
-               or (type(mjd) is not float and type(mjd) is not int)):
+  if (isinstance(pmra, (int, float))
+      or isinstance(pmdec, (int, float))
+               or isinstance(mjd_epoch, (int, float))
+                  or isinstance(mjd_query, (int, float))) == False:
     print('Please Input Valid: PMRA (float), PMDEC (float), or MJD (float)')
     print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
     return False
 
   # Checks Aperture Radius Input
-  if (type(r_fwhm) is not float and type(r_fwhm) is not int) or ((r_fwhm) < 0):
+  if (isinstance(r_fwhm, (int, float)) or (r_fwhm) > 0) == False:
     print('Please Input Valid: Aperture Radius')
     print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
     return False
 
   # Checks Inner Annulus Radius Input
-  if ((type(r_annulus_in) is not float and type(r_annulus_in) is not int)
-                                                  or ((r_annulus_in) < 0)):
+  if (isinstance(r_annulus_in, (int, float)) or ((r_annulus_in) > 0)) == False:
     print('Please Input Valid: Inner Annulus Radius')
     print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
     return False
 
   # Checks Outer Annulus Radius Input
-  if ((type(r_annulus_out) is not float and type(r_annulus_out) is not int)
-                                                    or ((r_annulus_out) < 0)):
+  if (isinstance(r_annulus_out, (int, float)) or ((r_annulus_out) > 0)) == False:
     print('Please Input Valid: Outer Annulus Radius')
     print('Read Documentation: https://github.com/huntbrooks85/Xcavation')
     return False
@@ -223,6 +222,7 @@ def variable_verify(ra, dec, # Core Inputs
 
 # User Configuration Data
 # ------------------------------------------------------ #
+mjd_now = Time(datetime.now()).mjd # Current MJD
 @dataclass
 class genspec_profile:
     r_fwhm: float = 2 # Aperture Radius FWHM
@@ -230,13 +230,14 @@ class genspec_profile:
     r_annulus_out: float = 10 # Outer Annulus Radius FWHM
     pmra: float = 0 # Proper Motion R.A. (arcsec/yr)
     pmdec: float = 0 # Proper Motion Decl. (arcsec/yr)
-    mjd: float = 61000 # Modified Julian Date
+    mjd_epoch: float = 61000 # Modified Julian Date of Epoch
+    mjd_query: float = mjd_now # Modified Julian Date of Query
     save_data: bool = False # Save Q.A., Table, and Spectral Data
     output_path: str = 'xcavation_save' # Saved Location
     threads: int = 1 # Number of Threads for Multi-Threading
     enable_print: bool = True # Whether to Print
     ram_download: bool = False # Download Images to RAM
-    retry_count: int = 25 # How Many HTML Retries
+    retry_count: int = 10 # How Many HTML Retries
     clean_type: str = 'none' # What type of Image Cleaning
     bad_bits: list = field(default_factory=lambda: [0,1,10,11]) # Flags Removed
     background_type: str = 'mean' # What type of background subtraction
@@ -250,7 +251,7 @@ class genspec_profile:
 
 # Creates Multi-Try Query
 # ------------------------------------------------------ #
-def retry(func, *args, retries=10, delay=0.5, **kwargs):
+def retry(func, *args, retries=10, delay=1, **kwargs):
     """
     Execute a function with automatic retries on failure.
 
@@ -366,7 +367,8 @@ def genspec(ra, dec, config: genspec_profile):
     r_annulus_out = config.r_annulus_out # Outer Annulus Radius in FWHM
     pmra = config.pmra # Proper Motion of R.A. in arcsec/yr
     pmdec = config.pmdec # Proper Motion of Decl. in arcsec/yr
-    mjd = config.mjd # R.A. and Decl. Start MJD
+    mjd = config.mjd_epoch # R.A. and Decl. Start MJD
+    mjd_query = config.mjd_query # User Defined Query MJD
     save_data = config.save_data # Boolean on Whether to Save Data
     output_path = config.output_path # Path to Save Data
     threads = config.threads # Number of Multi-Threads
@@ -387,7 +389,7 @@ def genspec(ra, dec, config: genspec_profile):
     # ----- Verify User Inputted Variables ----- #
     verify = variable_verify(ra, dec, # Positional Data
                              r_fwhm, r_annulus_in, r_annulus_out, # Radii Data
-                             pmra, pmdec, mjd, # Proper Motion Data
+                             pmra, pmdec, mjd, mjd_query, # Proper Motion Data
                              save_data, output_path, # Saved Data
                              threads, enable_print, ram_download, retry_count, # Misc.
                              clean_type, bad_bits, # Masking Data
@@ -405,7 +407,7 @@ def genspec(ra, dec, config: genspec_profile):
 
     # ----- Proper Motion Propagation ----- #
     # Calculate Propagated Proper Motion
-    mjd_now = Time(datetime.now()).mjd # Current MJD
+    mjd_now = mjd_query
     time_passed = time_mjd(mjd, mjd_now) # Years since observation
     ra_deg, dec_deg = proper_motion(ra, dec,
                           pmra, pmdec, time_passed) # Adjust for Proper Motion
@@ -427,8 +429,8 @@ def genspec(ra, dec, config: genspec_profile):
     ra_deg, dec_deg = ra_deg * u.degree, dec_deg * u.degree # Convert to astropy Units
     size = cutout_size/3600 * u.degree
     service = pyvo.dal.TAPService("https://irsa.ipac.caltech.edu/TAP")
-    # Query SphereX QR2 (Will Need Updates)
 
+    # Query SphereX QR2 (Will Need Updates)
     query = f"""
               SELECT
                   'https://irsa.ipac.caltech.edu/' || a.uri || '?center={ra_deg.value},{dec_deg.value}d&size={size.value}' AS uri,
@@ -436,7 +438,6 @@ def genspec(ra, dec, config: genspec_profile):
               FROM spherex.artifact a
               JOIN spherex.plane p ON a.planeid = p.planeid
               WHERE 1 = CONTAINS(POINT('ICRS', {ra_deg.value}, {dec_deg.value}), p.poly)
-              ORDER BY p.time_bounds_lower
             """
 
     results = service.search(query)

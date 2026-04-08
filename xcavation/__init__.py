@@ -1,10 +1,10 @@
-# xcavation v1.0.0
-# By Hunter Brooks, at UToledo, Toledo: Mar. 14, 2026
+# xcavation v1.0.1
+# By Hunter Brooks, at UToledo, Toledo: Apr. 08, 2026
 from .aperture import *
 from .genspec import *
 from .motion import *
 from .quality import *
 
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __author__ = 'Hunter Brooks'
 __email__ = 'hbrooks8@rockets.utoledo.edu'

@@ -66,6 +66,17 @@
      - *example:* ```-12.31254```
 
 - **User Configuration:**
+
+### Relavent Variables For <code> genspec </code>
+
+- **Required Variables:**
+  - **ra:** Right Accension in Degrees: *float*:
+     - *example:* ```131.123```
+
+  - **dec:** Declination in Degrees: *float*:
+     - *example:* ```-12.31254```
+
+- **User Configuration:**
   - **r_fwhm:** The Number Multiplied by the Image FWHM to Get The Aperture Radius: *float*
     - *example:* ```2.5```, default=```2```
   - **r_annulus_in:** The Number Multiplied by the Image FWHM to Get the Inner Annulus Radius: *float*
@@ -76,6 +87,10 @@
     - *example:* ```-0.981```, default=```0```
   - **pmdec:** Proper Motion in Declination (in arcsec/year): *float*
     - *example:* ```0.123```, default=```0```
+  - **mjd_epoch:** Modified Julian Date of Epoch Position: *float*
+    - *example:* ```57500```, default=```61000```
+  - **mjd_query:** Modified Julian Date of Query Position: *float*
+    -  *example:* ```61500```, default=```Time(datetime.now()).mjd```
   - **mjd:** Modified Julian Date of inputed R.A. and Decl. from Above: *float*
     - *example:* ```57170```, default=```61000```
   - **save_data:** Save Q.A. Finder Chart, Spectrum, and ASCII Table if True: *boolean*
@@ -89,7 +104,7 @@
   - **ram_download:** Enable ```xcavation.aperture``` Downloading Image Data on RAM Instead of Local Harddrive (best for computers with small amounts of storage): *boolean*
     - *example:* ```True```, default=```False```
   - **retry_count:** The Number of HTML 504 Retries Before xcavation.genspec Crashes: *int*
-    - *example:* ```1```, default=```25```
+    - *example:* ```1```, default=```10```
   - **clean_type:** The Type of Flagged Pixel Cleaning Done to the Calibrated image: *string*
     - *options:* ```none```, ```mask```, ```median_mask```, ```interp_mask```, ```lacosmic```
     - *example:* ```mask```, default=```none```
@@ -136,17 +151,18 @@ ra = 12.7955492
 dec = -15.7382839 
 
 # User Configuration
-user_config = genspec_profile(pmra = 0, pmdec = 0, mjd = 61000,
+user_config = genspec_profile(pmra = 0, pmdec = 0,
+                              mjd_epoch = 61000, mjd_query = 61500,
                               r_fwhm = 2, r_annulus_in = 5, r_annulus_out = 10,
                               save_data = True, output_path = 'test', 
-                              threads = 10, # Multi-Threading
-                              enable_print = True, ram_download = False,
-                              retry_count = 25,
+                              threads = 10,
+                              enable_print = True, ram_download = False, 
+                              retry_count = 10,
                               clean_type = 'mask', bad_bits = [0, 1, 10, 11],
                               background_type = 'mean',
                               cutout_size = 150,
-                              zodi_subtract = True, 
-                              sigclip_sigma = 5, sigclip_maxiters = 5) 
+                              zodi_subtract = True,
+                              sigclip_sigma = 5, sigclip_maxiters = 5)
 
 # Call function with test input parameters
 df = genspec(ra, dec, config = user_config)
