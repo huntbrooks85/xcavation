@@ -9,7 +9,7 @@
 [![SPHEREx QR2](https://img.shields.io/badge/SPHEREx-QR2-green)](https://irsa.ipac.caltech.edu/data/SPHEREx/docs/overview_qr.html)
 [![PyPI version](https://img.shields.io/pypi/v/xcavation)](https://pypi.org/project/xcavation/)
 [![PyPI downloads](https://img.shields.io/pypi/dm/xcavation)](https://pypistats.org/packages/xcavation)
-[![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.19023827-blue)](https://doi.org/10.5281/zenodo.19023827)
+[![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.19477136-blue)](https://doi.org/10.5281/zenodo.19477136)
 </p>
 </div>
 
