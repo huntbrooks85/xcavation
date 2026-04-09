@@ -1,6 +1,6 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.aperture v1.0.1
+# xcavation.aperture v1.0.2
 # By Hunter Brooks, at UToledo, Toledo: Apr. 08, 2026
 #
 # Purpose: Perform Aperture Photometry on SphereX Data
@@ -237,8 +237,6 @@ def spherex_aperature_phot(url_og, coord, pm, mjd,  # Coords
           med = median_filter(flux_image, size=5, mode='mirror')
           flux_image[bad] = med[bad]
         # ------------------------------------------------ #
-        del bad_pixel_mask # Delete Mask to Save on RAM
-
 
 
 
@@ -248,7 +246,6 @@ def spherex_aperature_phot(url_og, coord, pm, mjd,  # Coords
         flux_ujy = flux_image * 1e6 * pixel_area_sr * 1e6 # Flux Convert
         var_ujy = variance_image * (1e6 * pixel_area_sr * 1e6)**2 # Variance Convert
         # ----------------------------------------------- #
-
 
 
 

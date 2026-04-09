@@ -1,6 +1,6 @@
 
 #-----------------------------------------------------------------------#
-# xcavation.genspec v1.0.1
+# xcavation.genspec v1.0.2
 # By Hunter Brooks, at UToledo, Toledo: Apr. 08, 2026
 #
 # Purpose: Main API Function for SphereX Data Retrieval and Photometry
