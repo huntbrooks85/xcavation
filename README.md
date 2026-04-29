@@ -180,7 +180,7 @@ df = genspec(ra, dec, config = user_config)
   <h2 style="font-size: 2em;">📖 Acknowledgments 📖</h2>
 </div>
 
-1. If you intend to publish any calculations done by xcavation, please reference Brooks et al. (in prep.).
+1. If you intend to publish any calculations done by xcavation, please reference https://iopscience.iop.org/article/10.3847/2515-5172/ae6257.
 
 2. Please reference the relevant [SPHEREx citations](https://spherex.caltech.edu/page/publications).
 
